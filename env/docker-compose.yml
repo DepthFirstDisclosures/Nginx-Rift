@@ -1,6 +1,7 @@
 services:
   nginx:
     build: .
+    platform: linux/amd64
     cap_add:
       - SYS_PTRACE
     security_opt:
