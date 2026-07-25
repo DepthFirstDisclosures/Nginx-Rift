@@ -26,10 +26,16 @@ Read more about this bug in our [technical write-up](https://depthfirst.com/rese
 
 Full vendor advisory: <https://my.f5.com/manage/s/article/K000160932>
 
-## Usage
+---
 
-Tested on Ubuntu 24.04.3 LTS.
+# CVE-2026-42530
 
-1. `./setup.sh` — build the container.
-2. `docker compose -f env/docker-compose.yml up` — start the vulnerable NGINX server.
-3. `python3 poc.py --shell` — pop a shell.
+[K000161616: NGINX ngx_http_v3_module vulnerability](https://my.f5.com/manage/s/article/K000161616) — HTTP/3 QPACK allocates the session `insert_buffer` from a unidirectional encoder stream's pool. Closing that stream frees the pool while the session keeps a dangling pointer, so a later encoder stream triggers a heap use-after-free in the NGINX worker. 
+
+# CVE-2026-42533
+
+[K000162097: NGINX map directive and regex matching vulnerability](https://my.f5.com/manage/s/article/K000162097) — `map` directive regex matching with capture variables can cause a heap buffer overflow in the NGINX worker process.
+
+The bug is in the stream script engine's two-pass complex-value evaluation. In a vulnerable `stream` configuration using `ssl_preread`, attacker-controlled TLS SNI is fed into regex-backed variables. NGINX first computes the output buffer length, then copies the output. A `map` regex can update the global capture state between those passes: the length pass accounts for a small value, while the copy pass reads a larger regex capture such as `$1`, causing an out-of-bounds heap write in the worker.
+
+The companion `CVE-2026-42533/` PoC is a full-chain exploit. It uses the stream leak primitive to recover heap and libc bases for ASLR bypass, sprays fake `ngx_pool_cleanup_s` records through HTTP request bodies, and then uses the overflow to corrupt an adjacent NGINX pool cleanup pointer. When the corrupted pool is destroyed, cleanup dispatch is redirected to libc `system()`, executing the supplied command.
